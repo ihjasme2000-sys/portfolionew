@@ -1,0 +1,41 @@
+import { createRouter as createRouterInstance } from '@tanstack/react-router'
+import { QueryClient } from '@tanstack/react-query'
+import { ConvexQueryClient } from '@convex-dev/react-query'
+import { ConvexProvider } from 'convex/react'
+import { routeTree } from './routeTree.gen'
+
+export function createRouter() {
+  const CONVEX_URL = import.meta.env.VITE_CONVEX_URL
+  if (!CONVEX_URL) {
+    console.error('Missing VITE_CONVEX_URL environment variable')
+  }
+  
+  const convexQueryClient = new ConvexQueryClient(CONVEX_URL)
+
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        queryKeyHashFn: convexQueryClient.hashFn(),
+        queryFn: convexQueryClient.queryFn(),
+      },
+    },
+  })
+  
+  convexQueryClient.connect(queryClient)
+
+  return createRouterInstance({
+    routeTree,
+    context: { queryClient },
+    Wrap: ({ children }) => (
+      <ConvexProvider client={convexQueryClient.convexClient}>
+        {children}
+      </ConvexProvider>
+    ),
+  })
+}
+
+declare module '@tanstack/react-router' {
+  interface Register {
+    router: ReturnType<typeof createRouter>
+  }
+}
